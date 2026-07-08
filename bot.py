@@ -189,6 +189,16 @@ class ProviderRotator:
                 "available": bool(OPENROUTER_KEY),
                 "last_reset": None,
             },
+            {
+                "name": "OpenRouter-GPT-OSS",
+                "url": OPENROUTER_URL,
+                "key": OPENROUTER_KEY,
+                "model": "openai/gpt-oss-120b:free",
+                "daily_limit": 50,
+                "count": 0,
+                "available": bool(OPENROUTER_KEY),
+                "last_reset": None,
+            },
         ]
         self.current_index = 0
         self._lock = threading.Lock()
