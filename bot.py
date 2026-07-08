@@ -781,7 +781,52 @@ def get_time_context(text: str):
     if not city:
         return None
     return fetch_time_only(city)
+    
+# ============================================================
+#  ПРОВЕРКА ФАКТОВ ЧЕРЕЗ ВИКИПЕДИЮ
+# ============================================================
+FACT_CHECK_TRIGGERS = [
+    "кто", "что такое", "когда", "сколько", "где находится", "самый",
+    "самая", "самое", "какой год", "столица", "население", "рекорд",
+    "чемпион", "президент", "основан", "изобрёл", "изобрел", "год основания",
+]
 
+def looks_like_factual_query(text: str) -> bool:
+    t = text.lower()
+    return any(kw in t for kw in FACT_CHECK_TRIGGERS)
+
+def fetch_wikipedia_context(query: str, lang: str = "ru"):
+    try:
+        api_url = f"https://{lang}.wikipedia.org/w/api.php"
+        search_r = requests.get(api_url, params={
+            "action": "query", "list": "search", "srsearch": query,
+            "format": "json", "srlimit": 1,
+        }, timeout=8, headers={"User-Agent": "MayaAI-VK-Bot/2.0"})
+        results = search_r.json().get("query", {}).get("search", [])
+        if not results:
+            return None
+        title = results[0]["title"]
+
+        extract_r = requests.get(api_url, params={
+            "action": "query", "prop": "extracts", "exintro": True,
+            "explaintext": True, "titles": title, "format": "json",
+        }, timeout=8, headers={"User-Agent": "MayaAI-VK-Bot/2.0"})
+        pages = extract_r.json().get("query", {}).get("pages", {})
+        for page in pages.values():
+            extract = page.get("extract", "")
+            if extract:
+                return f"[Википедия, статья «{title}»]: {extract[:1200]}"
+        return None
+    except Exception as e:
+        print(f"[wiki error] {e}")
+        return None
+
+def get_fact_check_context(text: str):
+    ctx = fetch_wikipedia_context(text, lang="ru")
+    if not ctx:
+        ctx = fetch_wikipedia_context(text, lang="en")
+    return ctx
+    
 # ============================================================
 #  ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЙ
 # ============================================================
