@@ -1171,9 +1171,9 @@ def main():
                                      conv_message_id=cmid)
                         img = with_typing(vk, peer_id, generate_image, prompt)
                         if img:
-                            att = upload_image_to_vk(vk, peer_id, img)
-                            send_message(vk, peer_id, f"Готово. Запрос: «{prompt}»",
-                                         attachment=att, conv_message_id=cmid)
+    att = upload_image_to_vk(vk, peer_id, img)
+    send_message(vk, peer_id, f"Готово! Вот изображение по вашему запросу: «{text.strip()}»",
+                 attachment=att, conv_message_id=cmid)
                         else:
                             send_message(vk, peer_id,
                                          "Не удалось создать изображение. Попробуй другой запрос.",
