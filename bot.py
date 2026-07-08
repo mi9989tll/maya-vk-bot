@@ -981,7 +981,7 @@ def call_ai_with_rotation(messages: list) -> str:
             r = requests.post(
                 provider["url"],
                 json={"model": provider["model"], "messages": messages,
-                      "max_tokens": 1500, "temperature": 0.7},
+                      "max_tokens": 1500, "temperature": 0.4},
                 headers=headers, timeout=60
             )
             if r.status_code == 429:
@@ -1010,7 +1010,7 @@ def call_ai_premium(messages: list, level: str) -> str:
     r = requests.post(
         cfg["url"],
         json={"model": cfg["model"], "messages": messages,
-              "max_tokens": 1500, "temperature": 0.7},
+              "max_tokens": 1500, "temperature": 0.4},
         headers={
             "Authorization": f"Bearer {cfg['key']}",
             "Content-Type": "application/json",
