@@ -1056,7 +1056,17 @@ def ask_maya(
         user_content = msg
         use_vision = False
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    now_msk = datetime.now(timezone.utc) + timedelta(hours=3)
+    current_date_note = (
+        f"Актуальная дата и время сейчас: {now_msk.strftime('%d.%m.%Y, %H:%M')} "
+        f"(по московскому времени). Используй эту дату как истинную, "
+        f"если тебя спрашивают про текущий день, время, год или что-то, "
+        f"что зависит от сегодняшней даты."
+    )
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": current_date_note},
+    ]
     messages.extend(history)
     messages.append({"role": "user", "content": user_content})
 
