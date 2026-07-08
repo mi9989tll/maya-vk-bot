@@ -912,6 +912,33 @@ def generate_via_huggingface(prompt: str):
             print(f"[image] HF ({model}): {e}")
     return None
 
+def generate_via_together_flux(prompt: str):
+    if not TOGETHER_KEY:
+        return None
+    try:
+        r = requests.post(
+            "https://api.together.xyz/v1/images/generations",
+            json={
+                "model": "black-forest-labs/FLUX.1-schnell-Free",
+                "prompt": prompt,
+                "width": 1024,
+                "height": 1024,
+                "steps": 4,
+                "n": 1,
+                "response_format": "base64",
+            },
+            headers={"Authorization": f"Bearer {TOGETHER_KEY}", "Content-Type": "application/json"},
+            timeout=60
+        )
+        if r.status_code == 200:
+            b64 = r.json()["data"][0]["b64_json"]
+            print("[image] ✅ Together FLUX")
+            return base64.b64decode(b64)
+        print(f"[image] Together FLUX {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        print(f"[image] Together FLUX error: {e}")
+    return None
+
 def generate_via_pollinations(prompt: str):
     try:
         encoded = requests.utils.quote(prompt)
@@ -930,7 +957,7 @@ def generate_via_pollinations(prompt: str):
 
 def generate_image(prompt: str):
     eng = translate_prompt_to_english(prompt)
-    return generate_via_huggingface(eng) or generate_via_pollinations(eng)
+    return generate_via_together_flux(eng) or generate_via_pollinations(eng)
 
 # ============================================================
 #  ФОТО VK
