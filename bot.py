@@ -1309,6 +1309,9 @@ def main():
                                          conv_message_id=cmid)
                             continue
 
+                    if text and not extra_context and looks_like_factual_query(text):
+                        extra_context = with_typing(vk, peer_id, get_fact_check_context, text)
+
                     # ── ЗАПРОС К МАЯ ─────────────────────────────
                     answer = with_typing(
                         vk, peer_id, ask_maya,
