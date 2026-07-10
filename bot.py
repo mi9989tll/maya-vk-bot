@@ -1128,12 +1128,15 @@ def ask_maya(
         user_content = msg
         use_vision = False
 
+ WEEKDAYS_RU = ["понедельник", "вторник", "среда", "четверг",
+                   "пятница", "суббота", "воскресенье"]
     now_msk = datetime.now(timezone.utc) + timedelta(hours=3)
+    weekday_name = WEEKDAYS_RU[now_msk.weekday()]
     current_date_note = (
-        f"Актуальная дата и время сейчас: {now_msk.strftime('%d.%m.%Y, %H:%M')} "
-        f"(по московскому времени). Используй эту дату как истинную, "
-        f"если тебя спрашивают про текущий день, время, год или что-то, "
-        f"что зависит от сегодняшней даты."
+        f"Сейчас точно: {weekday_name}, {now_msk.strftime('%d.%m.%Y')}, "
+        f"время {now_msk.strftime('%H:%M')} (МСК). Это данные из системных часов сервера — "
+        f"стопроцентно верные. Никогда не пересчитывай день недели самостоятельно, "
+        f"всегда используй именно то значение, которое дано здесь."
     )
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
