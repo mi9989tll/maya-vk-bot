@@ -1405,20 +1405,32 @@ def is_prompt_unsafe(prompt: str) -> bool:
                                          "Давай что-нибудь другое?",
                                          conv_message_id=cmid)
                             continue
+                    # ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
                     if text and is_image_request(text):
                         prompt = extract_image_prompt(text)
                         if not prompt:
                             send_message(vk, peer_id, "Уточни, что именно нарисовать.",
                                          conv_message_id=cmid)
                             continue
+                        if is_prompt_unsafe(prompt):
+                            send_message(vk, peer_id,
+                                         "Не могу сгенерировать изображение откровенного характера. "
+                                         "Давай что-нибудь другое?",
+                                         conv_message_id=cmid)
+                            continue
+                        save_to_history(peer_id, "user", f"[Пользователь {from_id}]: {text}")
                         send_message(vk, peer_id, "Генерирую изображение, несколько секунд…",
                                      conv_message_id=cmid)
                         img = with_typing(vk, peer_id, generate_image, prompt)
                         if img:
                             att = upload_image_to_vk(vk, peer_id, img)
+                            save_to_history(peer_id, "assistant",
+                                            f"[Я только что сгенерировала изображение по запросу: «{prompt}»]")
                             send_message(vk, peer_id, f"Готово! Вот изображение по вашему запросу: «{text.strip()}»",
                                          attachment=att, conv_message_id=cmid)
                         else:
+                            save_to_history(peer_id, "assistant",
+                                            f"[Попытка сгенерировать изображение по запросу «{prompt}» не удалась]")
                             send_message(vk, peer_id,
                                          "Не удалось создать изображение. Попробуй другой запрос.",
                                          conv_message_id=cmid)
