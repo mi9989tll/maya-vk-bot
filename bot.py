@@ -887,6 +887,17 @@ IMAGE_TRIGGERS = [
 
 def is_image_request(text: str) -> bool:
     return any(kw in text.lower() for kw in IMAGE_TRIGGERS)
+    NSFW_BLOCKLIST = [
+    "nude", "naked", "nsfw", "porn", "sex", "sexual", "erotic",
+    "explicit", "topless", "genitals", "hentai",
+    "голый", "голая", "нюдс", "порно", "эротика", "секс",
+    "интим", "обнажённ", "обнажен", "гомосек", "гомосеки", "лесбиянки"
+    "пидарасы", "гомосексуалисты", "пидоры"
+]
+
+def is_prompt_unsafe(prompt: str) -> bool:
+    t = prompt.lower()
+    return any(kw in t for kw in NSFW_BLOCKLIST)
 
 def extract_image_prompt(text: str) -> str:
     t = text.lower()
@@ -1404,24 +1415,6 @@ def main():
                                          conv_message_id=cmid)
                         continue
 
-                    # ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
-                    NSFW_BLOCKLIST = [
-    "nude", "naked", "nsfw", "porn", "sex", "sexual", "erotic",
-    "explicit", "topless", "genitals", "hentai",
-    "голый", "голая", "нюдс", "порно", "эротика", "секс",
-    "интим", "обнажённ", "обнажен", "гомосек", "гомосеки", "лесбиянки"
-    "гомики", "пидарасы"
-]
-
-def is_prompt_unsafe(prompt: str) -> bool:
-    t = prompt.lower()
-    return any(kw in t for kw in NSFW_BLOCKLIST)
-                    if is_prompt_unsafe(prompt):
-                            send_message(vk, peer_id,
-                                         "Не могу сгенерировать изображение откровенного характера. "
-                                         "Давай что-нибудь другое?",
-                                         conv_message_id=cmid)
-                            continue
                     # ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
                     if text and is_image_request(text):
                         prompt = extract_image_prompt(text)
