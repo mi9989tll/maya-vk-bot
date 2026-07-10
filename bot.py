@@ -33,7 +33,10 @@ WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "")
 HF_TOKEN        = os.environ.get("HF_TOKEN", "")
 DGIS_KEY        = os.environ.get("DGIS_KEY", "")       # 2GIS API — бесплатно
 GROUP_ID        = int(os.environ.get("GROUP_ID", "0"))
+CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
+CF_API_TOKEN  = os.environ.get("CF_API_TOKEN", "")
 
+CF_URL = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/v1/chat/completions"
 OPENROUTER_URL  = "https://openrouter.ai/api/v1/chat/completions"
 GROQ_URL        = "https://api.groq.com/openai/v1/chat/completions"
 CEREBRAS_URL    = "https://api.cerebras.ai/v1/chat/completions"
@@ -234,6 +237,16 @@ class ProviderRotator:
                 "daily_limit": 50,
                 "count": 0,
                 "available": bool(OPENROUTER_KEY),
+                "last_reset": None,
+            },
+            {
+                "name": "Cloudflare",
+                "url": CF_URL,
+                "key": CF_API_TOKEN,
+                "model": "@cf/openai/gpt-oss-120b",
+                "daily_limit": 10000,
+                "count": 0,
+                "available": bool(CF_API_TOKEN and CF_ACCOUNT_ID),
                 "last_reset": None,
             },
         ]
@@ -1039,17 +1052,21 @@ def plot_function(expr_str: str):
             ys = np.array(f(xs), dtype=float)
         ys[np.abs(ys) > 1e4] = np.nan
 
-        plt.figure(figsize=(8, 6), dpi=150)
-        plt.axhline(0, color="black", linewidth=0.8)
-        plt.axvline(0, color="black", linewidth=0.8)
-        plt.grid(True, linestyle="--", alpha=0.5)
-        plt.plot(xs, ys, color="#4A90D9", linewidth=2)
-        plt.title(f"y = {expr_str}")
-        plt.xlabel("x")
-        plt.ylabel("y")
+        plt.style.use("dark_background")
+        fig, ax = plt.subplots(figsize=(8, 6), dpi=150)
+        fig.patch.set_facecolor("#1e1e2e")
+        ax.set_facecolor("#1e1e2e")
+        ax.axhline(0, color="#888888", linewidth=0.8)
+        ax.axvline(0, color="#888888", linewidth=0.8)
+        ax.grid(True, linestyle="--", alpha=0.3, color="#555555")
+        ax.plot(xs, ys, color="#7aa2f7", linewidth=2.5)
+        ax.set_title(f"y = {expr_str}", color="#ffffff")
+        ax.set_xlabel("x", color="#ffffff")
+        ax.set_ylabel("y", color="#ffffff")
+        ax.tick_params(colors="#cccccc")
 
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", bbox_inches="tight")
+        plt.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
         plt.close()
         buf.seek(0)
         return buf.read()
