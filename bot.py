@@ -888,7 +888,7 @@ IMAGE_TRIGGERS = [
 def is_image_request(text: str) -> bool:
     return any(kw in text.lower() for kw in IMAGE_TRIGGERS)
     
-    NSFW_BLOCKLIST = [
+NSFW_BLOCKLIST = [
     "nude", "naked", "nsfw", "porn", "sex", "sexual", "erotic",
     "explicit", "topless", "genitals", "hentai",
     "голый", "голая", "нюдс", "порно", "эротика", "секс",
