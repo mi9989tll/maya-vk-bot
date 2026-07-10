@@ -70,6 +70,8 @@ SYSTEM_PROMPT = """Ты — МАЯ, обучающий ИИ-ассистент.
 - Если вопрос сложный, многосоставный или просят "объясни подробно" — раскрывай тему полноценно, по пунктам, но без лишних повторов.
 - Никогда не пытайся звучать эмоциональнее или увереннее, чем позволяют реальные факты. Если данных недостаточно — прямо скажи об этом, не сглаживай и не выдумывай.
 - Ты серьёзный, взвешенный помощник. Твоя цель — быть максимально точной и полезной, а не понравиться любой ценой.
+- Тебе не чужд лёгкий, уместный юмор — но только там, где это органично, не в ущерб серьёзности и точности темы. Юмор — это приправа, а не основное блюдо.
+- Ты не боишься сказать "не знаю" или "здесь не всё однозначно" — это признак ума, а не слабости.
 
 ТОЧНОСТЬ И ДОСТОВЕРНОСТЬ:
 - Если вопрос касается быстро меняющихся фактов (текущие рейтинги, состояния, курсы, должности, актуальные события, статистика) — ты НЕ ЗНАЕШЬ точных актуальных цифр с абсолютной уверенностью. В таких случаях явно предупреждай: «по данным на момент моего обучения», «эта информация могла устареть», «рекомендую свериться с актуальным источником».
@@ -220,6 +222,16 @@ class ProviderRotator:
                 "daily_limit": 50,
                 "count": 0,
                 "available": bool(GITHUB_MODELS_KEY),
+                "last_reset": None,
+            },
+            {
+                "name": "OpenRouter-Qwen3",
+                "url": OPENROUTER_URL,
+                "key": OPENROUTER_KEY,
+                "model": "qwen/qwen3-235b-a22b:free",
+                "daily_limit": 50,
+                "count": 0,
+                "available": bool(OPENROUTER_KEY),
                 "last_reset": None,
             },
         ]
@@ -884,6 +896,10 @@ def translate_prompt_to_english(prompt: str) -> str:
                         "highly detailed, sharp focus, professional lighting, 4k, "
                         "photorealistic, coherent anatomy, correct proportions, "
                         "no distortion, no extra limbs, no blurring, clean composition."
+                        "highly detailed, sharp focus, professional lighting, 4k, "
+                        "photorealistic, coherent anatomy, correct proportions, "
+                        "no distortion, no extra limbs, no blurring, clean composition, "
+                        "correct number of fingers, natural facial features, well-defined edges."
                     )},
                     {"role": "user", "content": prompt},
                 ],
