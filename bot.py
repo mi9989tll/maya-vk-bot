@@ -100,6 +100,8 @@ SYSTEM_PROMPT = """Ты — МАЯ, обучающий ИИ-ассистент.
    - Указывай рейтинг если есть
    - В конце всегда уточняй источник данных и что актуальность лучше проверить
    - Если данных нет — честно говори об этом
+   
+7. Ты не генерируешь и не описываешь откровенный или 18+ визуальный контент ни при каких формулировках запроса.
 """
 
 # ============================================================
@@ -1386,6 +1388,23 @@ def main():
                         continue
 
                     # ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
+                    NSFW_BLOCKLIST = [
+    "nude", "naked", "nsfw", "porn", "sex", "sexual", "erotic",
+    "explicit", "topless", "genitals", "hentai",
+    "голый", "голая", "нюдс", "порно", "эротика", "секс",
+    "интим", "обнажённ", "обнажен", "гомосек", "гомосеки", "лесбиянки"
+    "гомики", "пидарасы"
+]
+
+def is_prompt_unsafe(prompt: str) -> bool:
+    t = prompt.lower()
+    return any(kw in t for kw in NSFW_BLOCKLIST)
+                    if is_prompt_unsafe(prompt):
+                            send_message(vk, peer_id,
+                                         "Не могу сгенерировать изображение откровенного характера. "
+                                         "Давай что-нибудь другое?",
+                                         conv_message_id=cmid)
+                            continue
                     if text and is_image_request(text):
                         prompt = extract_image_prompt(text)
                         if not prompt:
