@@ -8,6 +8,11 @@ import base64
 import io
 import json
 import threading
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import sympy as sp
 from PIL import Image
 from datetime import datetime, timezone, timedelta
 
@@ -873,10 +878,12 @@ def translate_prompt_to_english(prompt: str) -> str:
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [
-                    {"role": "system", "content": (
+                   {"role": "system", "content": (
                         "Translate the image description to English for AI image generation. "
                         "Return ONLY the translated prompt with quality tags: "
-                        "highly detailed, sharp focus, professional lighting, 4k, masterpiece."
+                        "highly detailed, sharp focus, professional lighting, 4k, "
+                        "photorealistic, coherent anatomy, correct proportions, "
+                        "no distortion, no extra limbs, no blurring, clean composition."
                     )},
                     {"role": "user", "content": prompt},
                 ],
@@ -975,6 +982,62 @@ def generate_via_pollinations(prompt: str):
 def generate_image(prompt: str):
     eng = translate_prompt_to_english(prompt)
     return generate_via_together_flux(eng) or generate_via_pollinations(eng)
+
+# ============================================================
+#  ГРАФИКИ ФУНКЦИЙ
+# ============================================================
+GRAPH_TRIGGERS = [
+    "график функции", "построй график", "нарисуй график",
+    "график уравнения", "начерти график", "изобрази график",
+]
+
+def is_graph_request(text: str) -> bool:
+    return any(kw in text.lower() for kw in GRAPH_TRIGGERS)
+
+def extract_function_expression(text: str):
+    messages = [
+        {"role": "system", "content": (
+            "Извлеки из запроса пользователя математическую функцию от x "
+            "в виде чистого выражения для sympy (пример: x**2 + 3*x - 5, "
+            "sin(x), sqrt(x), log(x), exp(x)). "
+            "Ответь ТОЛЬКО самим выражением, без слов, без 'y=', без пояснений."
+        )},
+        {"role": "user", "content": text},
+    ]
+    try:
+        return call_ai_with_rotation(messages).strip()
+    except Exception as e:
+        print(f"[graph extract error] {e}")
+        return None
+
+def plot_function(expr_str: str):
+    try:
+        x = sp.symbols('x')
+        expr = sp.sympify(expr_str, locals={"x": x})
+        f = sp.lambdify(x, expr, modules=["numpy"])
+
+        xs = np.linspace(-10, 10, 1000)
+        with np.errstate(all="ignore"):
+            ys = np.array(f(xs), dtype=float)
+        ys[np.abs(ys) > 1e4] = np.nan
+
+        plt.figure(figsize=(8, 6), dpi=150)
+        plt.axhline(0, color="black", linewidth=0.8)
+        plt.axvline(0, color="black", linewidth=0.8)
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.plot(xs, ys, color="#4A90D9", linewidth=2)
+        plt.title(f"y = {expr_str}")
+        plt.xlabel("x")
+        plt.ylabel("y")
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", bbox_inches="tight")
+        plt.close()
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        print(f"[graph plot error] {e}")
+        return None
 
 # ============================================================
 #  ФОТО VK
@@ -1282,6 +1345,20 @@ def main():
                         continue
 
                     sub_level = get_user_subscription_level(vk, from_id)
+                    
+                    # ── ГРАФИК ФУНКЦИИ ────────────────────────────
+                    if text and is_graph_request(text):
+                        expr = with_typing(vk, peer_id, extract_function_expression, text)
+                        img = plot_function(expr) if expr else None
+                        if img:
+                            att = upload_image_to_vk(vk, peer_id, img)
+                            send_message(vk, peer_id, f"Готово! График функции y = {expr}",
+                                         attachment=att, conv_message_id=cmid)
+                        else:
+                            send_message(vk, peer_id,
+                                         "Не удалось построить график. Уточни функцию, например: «построй график x^2 + 2x»",
+                                         conv_message_id=cmid)
+                        continue
 
                     # ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
                     if text and is_image_request(text):
