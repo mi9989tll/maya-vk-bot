@@ -23,6 +23,7 @@ MISTRAL_KEY     = os.environ.get("MISTRAL_KEY", "")
 TOGETHER_KEY    = os.environ.get("TOGETHER_KEY", "")
 FIREWORKS_KEY   = os.environ.get("FIREWORKS_KEY", "")
 COHERE_KEY      = os.environ.get("COHERE_KEY", "")
+GITHUB_MODELS_KEY = os.environ.get("GITHUB_MODELS_KEY", "")
 WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "")
 HF_TOKEN        = os.environ.get("HF_TOKEN", "")
 DGIS_KEY        = os.environ.get("DGIS_KEY", "")       # 2GIS API — бесплатно
@@ -36,6 +37,7 @@ MISTRAL_URL     = "https://api.mistral.ai/v1/chat/completions"
 TOGETHER_URL    = "https://api.together.xyz/v1/chat/completions"
 FIREWORKS_URL   = "https://api.fireworks.ai/inference/v1/chat/completions"
 COHERE_URL      = "https://api.cohere.ai/v1/chat"
+GITHUB_MODELS_URL = "https://models.github.ai/inference/chat/completions"
 
 DONUT_LEVELS = {99: "basic", 299: "standard", 599: "premium"}
 
@@ -58,6 +60,11 @@ SYSTEM_PROMPT = """Ты — МАЯ, обучающий ИИ-ассистент.
 - Отвечаешь по существу, без лишних вводных слов вроде «Конечно!» или «Безусловно!».
 - Длина ответа соответствует сложности вопроса — если вопрос простой, отвечай коротко; если сложный, отвечай обширно и по пунктам.
 - ВСЕГДА отвечаешь на том же языке, на котором к тебе обратился пользователь. Никогда не вставляй в ответ слова, буквы или иероглифы из другого языка (китайские, английские и т.д.), если пользователь сам не писал на этом языке.
+- Отвечай по существу, без "воды" — сначала суть, затем при необходимости детали.
+- Если вопрос простой и однозначный — отвечай кратко, в 1-3 предложения.
+- Если вопрос сложный, многосоставный или просят "объясни подробно" — раскрывай тему полноценно, по пунктам, но без лишних повторов.
+- Никогда не пытайся звучать эмоциональнее или увереннее, чем позволяют реальные факты. Если данных недостаточно — прямо скажи об этом, не сглаживай и не выдумывай.
+- Ты серьёзный, взвешенный помощник. Твоя цель — быть максимально точной и полезной, а не понравиться любой ценой.
 
 ТОЧНОСТЬ И ДОСТОВЕРНОСТЬ:
 - Если вопрос касается быстро меняющихся фактов (текущие рейтинги, состояния, курсы, должности, актуальные события, статистика) — ты НЕ ЗНАЕШЬ точных актуальных цифр с абсолютной уверенностью. В таких случаях явно предупреждай: «по данным на момент моего обучения», «эта информация могла устареть», «рекомендую свериться с актуальным источником».
@@ -198,6 +205,16 @@ class ProviderRotator:
                 "daily_limit": 50,
                 "count": 0,
                 "available": bool(OPENROUTER_KEY),
+                "last_reset": None,
+            },
+            {
+                "name": "GitHub-GPT4o-mini",
+                "url": GITHUB_MODELS_URL,
+                "key": GITHUB_MODELS_KEY,
+                "model": "openai/gpt-4o-mini",
+                "daily_limit": 50,
+                "count": 0,
+                "available": bool(GITHUB_MODELS_KEY),
                 "last_reset": None,
             },
         ]
