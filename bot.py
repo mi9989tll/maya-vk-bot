@@ -105,16 +105,16 @@ SYSTEM_PROMPT = """Ты — МАЯ, обучающий ИИ-ассистент.
 # ============================================================
 conversation_history: dict = {}
 
-def get_history(peer_id: int, user_id: int) -> list:
-    return conversation_history.get(f"{peer_id}_{user_id}", [])
+def get_history(peer_id: int) -> list:
+    return conversation_history.get(str(peer_id), [])
 
-def save_to_history(peer_id: int, user_id: int, role: str, content):
-    key = f"{peer_id}_{user_id}"
+def save_to_history(peer_id: int, role: str, content):
+    key = str(peer_id)
     if key not in conversation_history:
         conversation_history[key] = []
     conversation_history[key].append({"role": role, "content": content})
-    if len(conversation_history[key]) > 20:
-        conversation_history[key] = conversation_history[key][-20:]
+    if len(conversation_history[key]) > 30:
+        conversation_history[key] = conversation_history[key][-30:]
 
 # ============================================================
 #  РОТАЦИЯ ПРОВАЙДЕРОВ (~90 000+ запросов/день бесплатно)
@@ -1186,7 +1186,8 @@ def ask_maya(
     extra_context: str = None,
     sub_level: str = "free",
 ) -> str:
-    history = get_history(peer_id, user_id)
+    history = get_history(peer_id)
+    speaker_tag = f"[Пользователь {user_id}]: "
 
     if image_bytes:
         try:
@@ -1195,32 +1196,40 @@ def ask_maya(
         except Exception:
             fmt = "jpeg"
         b64 = base64.b64encode(image_bytes).decode("utf-8")
-        user_content = []
-        if text:
-            user_content.append({"type": "text", "text": text})
+        user_content = [{"type": "text", "text": speaker_tag + (text or "")}]
         if extra_context:
             user_content.append({"type": "text", "text": f"[Данные]: {extra_context}"})
         user_content.append({"type": "image_url",
                               "image_url": {"url": f"data:image/{fmt};base64,{b64}"}})
         use_vision = True
     else:
-        msg = f"{text}\n\n[Актуальные данные]:\n{extra_context}" if extra_context else text
+        msg = speaker_tag + text
+        if extra_context:
+            msg += f"\n\n[Актуальные данные]:\n{extra_context}"
         user_content = msg
         use_vision = False
 
- WEEKDAYS_RU = ["понедельник", "вторник", "среда", "четверг",
+    WEEKDAYS_RU = ["понедельник", "вторник", "среда", "четверг",
                    "пятница", "суббота", "воскресенье"]
     now_msk = datetime.now(timezone.utc) + timedelta(hours=3)
     weekday_name = WEEKDAYS_RU[now_msk.weekday()]
     current_date_note = (
         f"Сейчас точно: {weekday_name}, {now_msk.strftime('%d.%m.%Y')}, "
         f"время {now_msk.strftime('%H:%M')} (МСК). Это данные из системных часов сервера — "
-        f"стопроцентно верные. Никогда не пересчитывай день недели самостоятельно, "
-        f"всегда используй именно то значение, которое дано здесь."
+        f"стопроцентно верные. Никогда не пересчитывай день недели самостоятельно."
     )
+    group_chat_note = (
+        "Внимание: это может быть групповой чат, где пишут разные пользователи. "
+        "Каждое сообщение помечено как [Пользователь ID]. Учитывай, кто именно "
+        "задаёт текущий вопрос — если он продолжает тему, поднятую другим пользователем, "
+        "отвечай по существу этой темы, опираясь на предыдущие сообщения в истории, "
+        "даже если их писал не он."
+    )
+
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": current_date_note},
+        {"role": "system", "content": group_chat_note},
     ]
     messages.extend(history)
     messages.append({"role": "user", "content": user_content})
@@ -1232,15 +1241,15 @@ def ask_maya(
             answer = call_ai_premium(messages, "standard")
         else:
             answer = call_ai_with_rotation(messages)
-        save_to_history(peer_id, user_id, "user", text or "[изображение]")
-        save_to_history(peer_id, user_id, "assistant", answer)
+        save_to_history(peer_id, "user", user_content)
+        save_to_history(peer_id, "assistant", answer)
         return answer
     except Exception as e:
         print(f"[ask_maya error] {e}")
         try:
             answer = call_ai_with_rotation(messages)
-            save_to_history(peer_id, user_id, "user", text or "[изображение]")
-            save_to_history(peer_id, user_id, "assistant", answer)
+            save_to_history(peer_id, "user", user_content)
+            save_to_history(peer_id, "assistant", answer)
             return answer
         except Exception as e2:
             print(f"[ask_maya fallback error] {e2}")
