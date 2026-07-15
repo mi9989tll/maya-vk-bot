@@ -1448,7 +1448,7 @@ def main():
                     if event.type != VkBotEventType.MESSAGE_NEW:
                         continue
 
-                   message     = event.obj.message
+                    message     = event.obj.message
                     peer_id     = message.get("peer_id", 0)
                     from_id     = message.get("from_id", 0)
                     attachments = message.get("attachments", [])
