@@ -1448,11 +1448,12 @@ def main():
                     if event.type != VkBotEventType.MESSAGE_NEW:
                         continue
 
-                    message     = event.obj.message
+                   message     = event.obj.message
                     peer_id     = message.get("peer_id", 0)
                     from_id     = message.get("from_id", 0)
                     attachments = message.get("attachments", [])
                     cmid        = message.get("conversation_message_id") or None
+                    text        = (message.get("text") or "").strip()
                     action = message.get("action")
                     if action and action.get("type") == "chat_invite_user" \
                             and action.get("member_id") == -GROUP_ID:
