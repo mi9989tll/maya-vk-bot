@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import sympy as sp
 from PIL import Image
 from datetime import datetime, timezone, timedelta
+from collections import deque, defaultdict
 
 # ============================================================
 #  КОНФИГУРАЦИЯ
@@ -122,6 +123,59 @@ def save_to_history(peer_id: int, role: str, content):
     conversation_history[key].append({"role": role, "content": content})
     if len(conversation_history[key]) > 30:
         conversation_history[key] = conversation_history[key][-30:]
+        
+# ============================================================
+#  АНТИСПАМ И МОДЕРАЦИЯ БЕСЕД
+# ============================================================
+SPAM_MESSAGES_PER_WINDOW = 5     # сообщений
+SPAM_WINDOW_SECONDS = 10         # за столько секунд — считается флудом
+SPAM_REPEAT_THRESHOLD = 3        # одинаковых подряд — считается спамом
+SPAM_LINK_TRIGGERS = ["http://", "https://", "vk.cc/", "t.me/", "wa.me/"]
+MAX_WARNINGS_BEFORE_KICK = 3
+
+user_message_log = defaultdict(deque)          # {(peer_id, from_id): deque[timestamps]}
+user_last_messages = defaultdict(lambda: deque(maxlen=5))
+user_warnings = defaultdict(int)
+
+def is_flood(peer_id: int, from_id: int) -> bool:
+    key = (peer_id, from_id)
+    now = time.time()
+    dq = user_message_log[key]
+    dq.append(now)
+    while dq and now - dq[0] > SPAM_WINDOW_SECONDS:
+        dq.popleft()
+    return len(dq) > SPAM_MESSAGES_PER_WINDOW
+
+def is_repeated_spam(peer_id: int, from_id: int, text: str) -> bool:
+    key = (peer_id, from_id)
+    dq = user_last_messages[key]
+    dq.append(text.strip().lower())
+    if len(dq) < SPAM_REPEAT_THRESHOLD:
+        return False
+    last_n = list(dq)[-SPAM_REPEAT_THRESHOLD:]
+    return len(set(last_n)) == 1 and last_n[0] != ""
+
+def has_link_spam(text: str) -> bool:
+    t = text.lower()
+    return any(kw in t for kw in SPAM_LINK_TRIGGERS)
+
+def is_spam_message(peer_id: int, from_id: int, text: str) -> bool:
+    return (is_flood(peer_id, from_id)
+            or is_repeated_spam(peer_id, from_id, text)
+            or has_link_spam(text))
+
+def delete_spam_message(vk, peer_id: int, cmid: int):
+    try:
+        vk.messages.delete(peer_id=peer_id, cmids=[cmid], delete_for_all=1)
+    except Exception as e:
+        print(f"[antispam] Не удалось удалить сообщение: {e}")
+
+def kick_spammer(vk, peer_id: int, user_id: int):
+    try:
+        chat_id = peer_id - 2000000000
+        vk.messages.removeChatUser(chat_id=chat_id, member_id=user_id)
+    except Exception as e:
+        print(f"[antispam] Не удалось исключить пользователя: {e}")
 
 # ============================================================
 #  РОТАЦИЯ ПРОВАЙДЕРОВ (~90 000+ запросов/день бесплатно)
@@ -1389,12 +1443,47 @@ def main():
                     from_id     = message.get("from_id", 0)
                     attachments = message.get("attachments", [])
                     cmid        = message.get("conversation_message_id") or None
-
+                    action = message.get("action")
+                    if action and action.get("type") == "chat_invite_user" \
+                            and action.get("member_id") == -GROUP_ID:
+                        welcome_text = (
+                            "Привет! Я МАЯ 👋\n\n"
+                            "Чтобы я могла полноценно работать в этой беседе "
+                            "(помогать с вопросами, отвечать всем участникам, "
+                            "и модерировать спам), пожалуйста, назначьте меня "
+                            "администратором беседы:\n\n"
+                            "1. Откройте список участников беседы\n"
+                            "2. Найдите меня в списке (МАЯ)\n"
+                            "3. Нажмите на меня → «Назначить администратором беседы»\n\n"
+                            "Без этого шага я смогу отвечать на вопросы, "
+                            "но не смогу удалять спам-сообщения и исключать нарушителей."
+                        )
+                        send_message(vk, peer_id, welcome_text)
+                        continue
                     print(f"[event] peer={peer_id} from={from_id} cmid={cmid} "
                           f"text='{(message.get('text') or '')[:50]}'")
 
                     if from_id == -GROUP_ID:
                         continue
+
+                    # ── АНТИСПАМ (работает во всех беседах, независимо от обращения к боту) ──
+                    if peer_id > 2000000000 and text:
+                        if is_spam_message(peer_id, from_id, text):
+                            key = (peer_id, from_id)
+                            user_warnings[key] += 1
+                            if cmid:
+                                delete_spam_message(vk, peer_id, cmid)
+                            if user_warnings[key] >= MAX_WARNINGS_BEFORE_KICK:
+                                kick_spammer(vk, peer_id, from_id)
+                                send_message(vk, peer_id, "Участник исключён за спам.")
+                                user_warnings[key] = 0
+                            else:
+                                send_message(
+                                    vk, peer_id,
+                                    f"⚠️ Похоже на спам, сообщение удалено. "
+                                    f"Предупреждение {user_warnings[key]}/{MAX_WARNINGS_BEFORE_KICK}."
+                                )
+                            continue
 
                     respond, text = should_respond_in_chat(message)
                     if not respond:
