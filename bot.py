@@ -968,6 +968,13 @@ def is_prompt_unsafe(prompt: str) -> bool:
     t = prompt.lower()
     return any(kw in t for kw in NSFW_BLOCKLIST)
 
+def looks_like_real_person_request(prompt: str) -> bool:
+    t = prompt.lower()
+    fictional_markers = ["персонаж", "аниме", "фэнтези", "супергерой",
+                          "мультяшн", "вымышлен", "сказочн", "робот", "монстр"]
+    has_name_pattern = bool(re.match(r'^[А-ЯЁ][а-яё]+(\s+[А-ЯЁ][а-яё]+)?$', prompt.strip()))
+    return has_name_pattern and not any(m in t for m in fictional_markers)
+
 def extract_image_prompt(text: str) -> str:
     t = text.lower()
     for kw in sorted(IMAGE_TRIGGERS, key=len, reverse=True):
@@ -1536,7 +1543,7 @@ def main():
                                          "Давай что-нибудь другое?",
                                          conv_message_id=cmid)
                             continue
-                            REAL_PERSON_TRIGGERS = ["нарисуй меня", "нарисуй его", "нарисуй её"]
+
                         if looks_like_real_person_request(prompt):
                             send_message(vk, peer_id,
                                          "Я не рисую портреты конкретных людей по имени — "
@@ -1544,14 +1551,6 @@ def main():
                                          "Могу нарисовать что-то другое?",
                                          conv_message_id=cmid)
                             continue
-def looks_like_real_person_request(prompt: str) -> bool:
-    t = prompt.lower()
-    # эвристика: одно-два слова с заглавной буквы похоже на имя,
-    # без явного указания "персонаж", "аниме", "фэнтези" и т.п.
-    fictional_markers = ["персонаж", "аниме", "фэнтези", "супергерой",
-                          "мультяшн", "вымышлен", "сказочн", "робот", "монстр"]
-    has_name_pattern = bool(re.match(r'^[А-ЯЁ][а-яё]+(\s+[А-ЯЁ][а-яё]+)?$', prompt.strip()))
-    return has_name_pattern and not any(m in t for m in fictional_markers)
     
                         save_to_history(peer_id, "user", f"[Пользователь {from_id}]: {text}")
                         send_message(vk, peer_id, "Генерирую изображение, несколько секунд…",
