@@ -1537,7 +1537,7 @@ def main():
                         continue
 
                     # ── АНТИСПАМ (работает во всех беседах, независимо от обращения к боту) ──
-                  if peer_id > 2000000000 and text:
+                    if peer_id > 2000000000 and text:
                         admins = get_chat_admins(vk, peer_id)
                         if from_id not in admins and is_spam_message(peer_id, from_id, text):
                             key = (peer_id, from_id)
