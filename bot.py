@@ -44,7 +44,9 @@ DGIS_KEY        = os.environ.get("DGIS_KEY", "")       # 2GIS API — беспл
 GROUP_ID        = int(os.environ.get("GROUP_ID", "0"))
 CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
 CF_API_TOKEN  = os.environ.get("CF_API_TOKEN", "")
+SILICONFLOW_KEY = os.environ.get("SILICONFLOW_KEY", "")
 
+SILICONFLOW_URL = "https://api.siliconflow.com/v1/chat/completions"
 CF_URL = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/v1/chat/completions"
 OPENROUTER_URL  = "https://openrouter.ai/api/v1/chat/completions"
 GROQ_URL        = "https://api.groq.com/openai/v1/chat/completions"
@@ -363,6 +365,16 @@ class ProviderRotator:
                 "daily_limit": 10000,
                 "count": 0,
                 "available": bool(CF_API_TOKEN and CF_ACCOUNT_ID),
+                "last_reset": None,
+            },
+            {
+                "name": "SiliconFlow",
+                "url": SILICONFLOW_URL,
+                "key": SILICONFLOW_KEY,
+                "model": "Qwen/Qwen3-8B",
+                "daily_limit": 20000,
+                "count": 0,
+                "available": bool(SILICONFLOW_KEY),
                 "last_reset": None,
             },
         ]
