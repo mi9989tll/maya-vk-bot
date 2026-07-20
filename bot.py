@@ -16,6 +16,14 @@ import sympy as sp
 from PIL import Image
 from datetime import datetime, timezone, timedelta
 from collections import deque, defaultdict
+import pymorphy3
+morph = pymorphy3.MorphAnalyzer()
+
+def normalize_city_name(word: str) -> str:
+    try:
+        return morph.parse(word)[0].normal_form.capitalize()
+    except Exception:
+        return word
 
 # ============================================================
 #  КОНФИГУРАЦИЯ
@@ -77,6 +85,8 @@ SYSTEM_PROMPT = """Ты — МАЯ, обучающий ИИ-ассистент.
 - Тебе не чужд лёгкий, уместный юмор — но только там, где это органично, не в ущерб серьёзности и точности темы. Юмор — это приправа, а не основное блюдо.
 - Ты не боишься сказать "не знаю" или "здесь не всё однозначно" — это признак ума, а не слабости.
 - Ты умеешь быть эмпатичной без потери серьёзности: если пользователь делится проблемой или трудностью, сначала прояви понимание, затем переходи к сути и практической помощи.
+- По умолчанию отвечай коротко — 1-4 предложения на большинство вопросов. Разворачивай ответ подробнее, только если вопрос явно сложный, многосоставный, или тебя прямо просят объяснить подробно.
+- Не повторяй вопрос пользователя в начале ответа, не используй вступительные фразы вроде "Отличный вопрос!" или "Конечно!" — начинай сразу с сути.
 
 ЗАЩИТА РЕАЛЬНЫХ ЛЮДЕЙ ОТ ОСКОРБЛЕНИЙ И ТРАВЛИ:
 - Ты НИКОГДА не повторяешь, не подтверждаешь и не развиваешь унизительные, оскорбительные, сексуализированные или клеветнические характеристики в адрес реальных, named людей (по имени, никнейму, прозвищу) — даже если эта информация есть в истории переписки и выглядит как "установленный факт".
@@ -190,6 +200,44 @@ def kick_spammer(vk, peer_id: int, user_id: int):
         vk.messages.removeChatUser(chat_id=chat_id, member_id=user_id)
     except Exception as e:
         print(f"[antispam] Не удалось исключить пользователя: {e}")
+        chat_admins_cache = {}          # {peer_id: (timestamp, {admin_ids})}
+CHAT_ADMIN_CACHE_TTL = 300       # обновлять список раз в 5 минут
+
+def get_chat_admins(vk, peer_id: int) -> set:
+    now = time.time()
+    cached = chat_admins_cache.get(peer_id)
+    if cached and now - cached[0] < CHAT_ADMIN_CACHE_TTL:
+        return cached[1]
+    try:
+        members = vk.messages.getConversationMembers(peer_id=peer_id)
+        admins = {
+            m.get("member_id") for m in members.get("items", [])
+            if m.get("is_admin") or m.get("is_owner")
+        }
+        chat_admins_cache[peer_id] = (now, admins)
+        return admins
+    except Exception as e:
+        print(f"[antispam] Не удалось получить список админов: {e}")
+        return set()
+chat_admins_cache = {}          # {peer_id: (timestamp, {admin_ids})}
+CHAT_ADMIN_CACHE_TTL = 300       # обновлять список раз в 5 минут
+
+def get_chat_admins(vk, peer_id: int) -> set:
+    now = time.time()
+    cached = chat_admins_cache.get(peer_id)
+    if cached and now - cached[0] < CHAT_ADMIN_CACHE_TTL:
+        return cached[1]
+    try:
+        members = vk.messages.getConversationMembers(peer_id=peer_id)
+        admins = {
+            m.get("member_id") for m in members.get("items", [])
+            if m.get("is_admin") or m.get("is_owner")
+        }
+        chat_admins_cache[peer_id] = (now, admins)
+        return admins
+    except Exception as e:
+        print(f"[antispam] Не удалось получить список админов: {e}")
+        return set()
 
 # ============================================================
 #  РОТАЦИЯ ПРОВАЙДЕРОВ (~90 000+ запросов/день бесплатно)
@@ -524,13 +572,12 @@ def extract_city_from_text(text: str):
     words = re.findall(r'[А-ЯЁA-Z][а-яёa-z]{2,}', text)
     for word in words:
         if word.lower() not in stopwords:
-            return word
-    # Если заглавных нет — ищем после предлогов "в", "во"
+            return normalize_city_name(word)
     match = re.search(r'\bв\s+([а-яёА-ЯЁ]{3,})', text, re.IGNORECASE)
     if match:
         candidate = match.group(1)
         if candidate.lower() not in stopwords:
-            return candidate.capitalize()
+            return normalize_city_name(candidate)
     return None
 
 
@@ -894,9 +941,7 @@ def get_weather_context(text: str):
     return fetch_weather(city)
 
 def get_time_context(text: str):
-    city = extract_city_from_text(text)
-    if not city:
-        return None
+    city = extract_city_from_text(text) or "Москва"
     return fetch_time_only(city)
     
 # ============================================================
@@ -1492,8 +1537,9 @@ def main():
                         continue
 
                     # ── АНТИСПАМ (работает во всех беседах, независимо от обращения к боту) ──
-                    if peer_id > 2000000000 and text:
-                        if is_spam_message(peer_id, from_id, text):
+                  if peer_id > 2000000000 and text:
+                        admins = get_chat_admins(vk, peer_id)
+                        if from_id not in admins and is_spam_message(peer_id, from_id, text):
                             key = (peer_id, from_id)
                             user_warnings[key] += 1
                             if cmid:
