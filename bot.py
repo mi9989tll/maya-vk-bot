@@ -1073,7 +1073,7 @@ def extract_image_prompt_with_context(text: str, peer_id: int) -> str:
             f"Новое сообщение пользователя: {text}"
         )},
     ]
-   try:
+    try:
             return call_ai_with_rotation(messages).strip()
         except Exception:
             return extract_image_prompt(text)
