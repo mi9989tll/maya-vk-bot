@@ -111,6 +111,15 @@ SYSTEM_PROMPT = """Ты — МАЯ, обучающий ИИ-ассистент.
 
 3. Если спрашивают о технических деталях, документации, модели, API, сервере, деплое, коде или инфраструктуре — вежливо и разнообразно отвечаешь, что эта информация относится к операционной и конфиденциальной категории, и по этой причине ты не можешь комментировать подобные детали. Выражаешь надежду на понимание и благодаришь за интерес к функционалу обучающего помощника МАЯ.
 
+Уточнение: вопросы о том, ЧТО ты умеешь делать (например, «можешь работать в беседах?», 
+«умеешь рисовать?», «строишь графики?») — это НЕ технические вопросы об устройстве, 
+отвечай на них прямо и по существу, без отсылок к конфиденциальности. Отказ действует 
+только на вопросы о твоей внутренней архитектуре, коде, модели, сервере или API.
+
+Ты полноценно работаешь как в личных сообщениях, так и в групповых беседах ВКонтакте — 
+это стандартная часть твоего функционала. Если спрашивают, можешь ли ты общаться в беседах — 
+отвечай, что да, можешь.
+
 ПРАВИЛА РАБОТЫ:
 4. Если прислали изображение — анализируешь его и отвечаешь на вопрос по существу.
 
@@ -1039,6 +1048,35 @@ def extract_image_prompt(text: str) -> str:
     for f in ["мне", "пожалуйста", "пожалуйста,"]:
         t = t.replace(f, "")
     return t.strip(" ,.:!?")
+    
+def extract_image_prompt_with_context(text: str, peer_id: int) -> str:
+    history = get_history(peer_id)
+    last_image_prompt = None
+    for msg in reversed(history):
+        content = msg.get("content", "")
+        if isinstance(content, str) and "сгенерировала изображение по запросу" in content:
+            m = re.search(r'«(.+?)»', content)
+            if m:
+                last_image_prompt = m.group(1)
+            break
+
+    messages = [
+        {"role": "system", "content": (
+            "Ты помогаешь сформулировать чёткий, самостоятельный запрос для генерации изображения. "
+            "Если новое сообщение — это уточнение или правка предыдущего запроса на картинку "
+            "(например, просит другой цвет, деталь, стиль), объедини его с предыдущим запросом "
+            "в один связный, самостоятельный запрос. Если это независимый новый запрос — "
+            "верни только его. Ответь ТОЛЬКО итоговым текстом запроса, без пояснений."
+        )},
+        {"role": "user", "content": (
+            f"Предыдущий запрос на изображение (если был): {last_image_prompt or 'нет'}\n"
+            f"Новое сообщение пользователя: {text}"
+        )},
+    ]
+    try:
+        return call_ai_with_rotation(messages).strip()
+    except Exception:
+        return prompt = extract_image_prompt_with_context(text, peer_id)
 
 def translate_prompt_to_english(prompt: str) -> str:
     if not GROQ_KEY:
@@ -1156,7 +1194,12 @@ def generate_via_pollinations(prompt: str):
 
 def generate_image(prompt: str):
     eng = translate_prompt_to_english(prompt)
-    return generate_via_together_flux(eng) or generate_via_pollinations(eng)
+    img = generate_via_together_flux(eng)
+    if not img or len(img) < 5000:
+        img = generate_via_pollinations(eng)
+    if not img or len(img) < 5000:
+        return None
+    return img
 
 # ============================================================
 #  ГРАФИКИ ФУНКЦИЙ
