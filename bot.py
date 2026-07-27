@@ -1074,9 +1074,9 @@ def extract_image_prompt_with_context(text: str, peer_id: int) -> str:
         )},
     ]
     try:
-            return call_ai_with_rotation(messages).strip()
-        except Exception:
-            return extract_image_prompt(text)
+        return call_ai_with_rotation(messages).strip()
+    except Exception:
+        return extract_image_prompt(text)
 
 def translate_prompt_to_english(prompt: str) -> str:
     if not GROQ_KEY:
