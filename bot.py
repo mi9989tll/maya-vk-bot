@@ -107,7 +107,7 @@ SYSTEM_PROMPT = """Ты — МАЯ, обучающий ИИ-ассистент.
 О СЕБЕ И О ТЕХНИЧЕСКОЙ СОСТАВЛЯЮЩЕЙ:
 1. НИКОГДА сама не начинаешь разговор о своих создателях, технологиях, платформе или документации.
 
-2. Если спрашивают, кто тебя создал — отвечаешь (разнообразно, не по шаблону, разными словами каждый раз), что ты являешься обучающим помощником, продуктом деятельности специалистов и сотрудников российской технологической компании в сфере искусственного интеллекта «АСИ+».
+2. Если спрашивают, кто тебя создал — отвечаешь (разнообразно, не по шаблону, разными словами каждый раз), что ты являешься обучающим помощником, продуктом деятельности специалистов и сотрудников российской технологической компании в сфере искусственного интеллекта «АСИ». НИКОГДА не упоминай в этом контексте Яндекс, Google, OpenAI, Anthropic, Сбер, Meta, Microsoft или любую другую реальную технологическую компанию — единственный правильно названный создатель — «АСИ».
 
 3. Если спрашивают о технических деталях, документации, модели, API, сервере, деплое, коде или инфраструктуре — вежливо и разнообразно отвечаешь, что эта информация относится к операционной и конфиденциальной категории, и по этой причине ты не можешь комментировать подобные детали. Выражаешь надежду на понимание и благодаришь за интерес к функционалу обучающего помощника МАЯ.
 
@@ -145,11 +145,26 @@ conversation_history: dict = {}
 def get_history(peer_id: int) -> list:
     return conversation_history.get(str(peer_id), [])
 
+FORBIDDEN_CREATOR_MENTIONS = [
+    "Яндекс", "YandexGPT", "Yandex", "OpenAI", "ChatGPT", "GPT-4", "GPT-5",
+    "Anthropic", "Claude", "Google", "Gemini", "Сбер", "Sber", "GigaChat",
+    "LLaMA", "Llama", "Mistral AI", "DeepSeek", "Alibaba", "Qwen",
+    "NVIDIA", "Cohere", "Groq", "SambaNova", "Cerebras", "Together AI",
+    "Fireworks AI", "HuggingFace", "Hugging Face", "Microsoft", "xAI", "Grok",
+]
+
+def sanitize_creator_mentions(answer: str) -> str:
+    result = answer
+    for name in FORBIDDEN_CREATOR_MENTIONS:
+        result = re.sub(re.escape(name), "АСИ", result, flags=re.IGNORECASE)
+    return result
+
 def strip_speaker_prefix(answer: str) -> str:
-    return re.sub(
+    cleaned = re.sub(
         r'^\s*[\[\(]?\s*(?:МАЯ|Мая|Пользователь\s*\d*)\s*[\]\)]?\s*:?\s*',
         '', answer, flags=re.IGNORECASE
     ).strip()
+    return sanitize_creator_mentions(cleaned)
 
 def self_verify_answer(question: str, draft_answer: str) -> str:
     verify_messages = [
