@@ -151,6 +151,24 @@ def strip_speaker_prefix(answer: str) -> str:
         '', answer, flags=re.IGNORECASE
     ).strip()
 
+def self_verify_answer(question: str, draft_answer: str) -> str:
+    verify_messages = [
+        {"role": "system", "content": (
+            "Ты — строгий проверяющий редактор. Тебе дан вопрос и черновик ответа. "
+            "Проверь черновик на фактические ошибки, противоречия, нелогичность или "
+            "неуверенные утверждения, поданные как точный факт. "
+            "Если черновик хорош — верни его БЕЗ ИЗМЕНЕНИЙ. "
+            "Если нашёл проблему — верни ИСПРАВЛЕННУЮ версию ответа, "
+            "сохраняя стиль и длину, но убрав ошибку. "
+            "Ответь ТОЛЬКО финальным текстом ответа, без пояснений и комментариев о проверке."
+        )},
+        {"role": "user", "content": f"Вопрос: {question}\n\nЧерновик ответа: {draft_answer}"},
+    ]
+    try:
+        return call_ai_with_rotation(verify_messages).strip()
+    except Exception:
+        return draft_answer
+
 def save_to_history(peer_id: int, role: str, content):
     key = str(peer_id)
     if key not in conversation_history:
@@ -196,8 +214,7 @@ def has_link_spam(text: str) -> bool:
 
 def is_spam_message(peer_id: int, from_id: int, text: str) -> bool:
     return (is_flood(peer_id, from_id)
-            or is_repeated_spam(peer_id, from_id, text)
-            or has_link_spam(text))
+            or is_repeated_spam(peer_id, from_id, text))
 
 def delete_spam_message(vk, peer_id: int, cmid: int):
     try:
@@ -1493,6 +1510,9 @@ def ask_maya(
         else:
             answer = call_ai_with_rotation(messages)
         answer = strip_speaker_prefix(answer)
+        if not use_vision and looks_like_factual_query(text or ""):
+            answer = self_verify_answer(text or "", answer)
+            answer = strip_speaker_prefix(answer)
         save_to_history(peer_id, "user", user_content)
         save_to_history(peer_id, "assistant", answer)
         return answer
