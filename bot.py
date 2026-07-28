@@ -1049,6 +1049,12 @@ def extract_image_prompt(text: str) -> str:
         t = t.replace(f, "")
     return t.strip(" ,.:!?")
     
+FOLLOWUP_MARKERS = [
+    "а можешь", "а если", "сделай", "а точнее", "только",
+    "а теперь", "измени", "поменяй", "перекрась", "переделай",
+    "другой цвет", "ещё раз", "давай",
+]
+
 def extract_image_prompt_with_context(text: str, peer_id: int) -> str:
     history = get_history(peer_id)
     last_image_prompt = None
@@ -1060,17 +1066,15 @@ def extract_image_prompt_with_context(text: str, peer_id: int) -> str:
                 last_image_prompt = m.group(1)
             break
 
-    messages = [
-        {"role": "system", "content": (
-            "Ты помогаешь сформулировать чёткий, самостоятельный запрос для генерации изображения. "
-            "Если новое сообщение — это уточнение или правка предыдущего запроса на картинку "
-            "(например, просит другой цвет, деталь, стиль), объедини его с предыдущим запросом "
-            "в один связный, самостоятельный запрос. Если это независимый новый запрос — "
-            "верни только его. Ответь ТОЛЬКО итоговым текстом запроса, без пояснений."
-        )},
-        {"role": "user", "content": (
-            f"Предыдущий запрос на изображение (если был): {last_image_prompt or 'нет'}\n"
-            f"Новое сообщение пользователя: {text}"
+    new_prompt = extract_image_prompt(text)
+    t_lower = text.lower()
+    is_followup = last_image_prompt and (
+        len(new_prompt.split()) <= 5
+        or any(marker in t_lower for marker in FOLLOWUP_MARKERS)
+    )
+    if is_followup:
+        return f"{last_image_prompt}, {new_prompt}".strip(", ")
+    return new_prompt
         )},
     ]
     try:
@@ -1192,14 +1196,43 @@ def generate_via_pollinations(prompt: str):
         print(f"[image] Pollinations: {e}")
     return None
 
+def is_valid_image(data: bytes) -> bool:
+    try:
+        img = Image.open(io.BytesIO(data))
+        img.verify()
+        return True
+    except Exception:
+        return False
+
+def generate_via_cloudflare_flux(prompt: str):
+    if not (CF_ACCOUNT_ID and CF_API_TOKEN):
+        return None
+    try:
+        r = requests.post(
+            f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
+            f"/ai/run/@cf/black-forest-labs/flux-1-schnell",
+            json={"prompt": prompt, "steps": 4},
+            headers={"Authorization": f"Bearer {CF_API_TOKEN}"},
+            timeout=60
+        )
+        if r.status_code == 200:
+            data = r.json()
+            b64 = data.get("result", {}).get("image")
+            if b64:
+                print("[image] ✅ Cloudflare FLUX")
+                return base64.b64decode(b64)
+        print(f"[image] Cloudflare FLUX {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        print(f"[image] Cloudflare FLUX error: {e}")
+    return None
+
 def generate_image(prompt: str):
     eng = translate_prompt_to_english(prompt)
-    img = generate_via_together_flux(eng)
-    if not img or len(img) < 5000:
-        img = generate_via_pollinations(eng)
-    if not img or len(img) < 5000:
-        return None
-    return img
+    for gen_func in (generate_via_together_flux, generate_via_cloudflare_flux, generate_via_pollinations):
+        img = gen_func(eng)
+        if img and is_valid_image(img):
+            return img
+    return None
 
 # ============================================================
 #  ГРАФИКИ ФУНКЦИЙ
