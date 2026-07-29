@@ -166,6 +166,15 @@ def strip_speaker_prefix(answer: str) -> str:
     ).strip()
     return sanitize_creator_mentions(cleaned)
 
+def get_last_image_context(peer_id: int):
+    history = get_history(peer_id)
+    for msg in reversed(history):
+        content = msg.get("content", "")
+        if isinstance(content, str) and "сгенерировала изображение по запросу" in content:
+            m = re.search(r'«(.+?)»', content)
+            return m.group(1) if m else None
+    return None
+
 def self_verify_answer(question: str, draft_answer: str) -> str:
     verify_messages = [
         {"role": "system", "content": (
@@ -1271,6 +1280,18 @@ GRAPH_TRIGGERS = [
 def is_graph_request(text: str) -> bool:
     return any(kw in text.lower() for kw in GRAPH_TRIGGERS)
 
+CAPABILITY_QUESTION_TRIGGERS = [
+    "ты умеешь рисовать", "умеешь генерировать", "можешь нарисовать",
+    "можешь сгенерировать", "умеешь создавать изображения", "ты можешь рисовать",
+    "генерируешь картинки", "умеешь делать картинки", "можешь сделать фото",
+    "ты рисуешь", "как ты рисуешь", "умеешь ли ты рисовать",
+    "можешь ли ты рисовать", "умеешь строить графики", "можешь построить график",
+]
+
+def is_capability_question(text: str) -> bool:
+    t = text.lower()
+    return any(kw in t for kw in CAPABILITY_QUESTION_TRIGGERS)
+
 def extract_function_expression(text: str):
     messages = [
         {"role": "system", "content": (
@@ -1509,13 +1530,22 @@ def ask_maya(
         "'МАЯ:', '[МАЯ]', 'Пользователь X:' или что-то подобное перед своим ответом."
     )
 
+last_img_prompt = get_last_image_context(peer_id)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": current_date_note},
         {"role": "system", "content": group_chat_note},
     ]
-    messages.extend(history)
-    messages.append({"role": "user", "content": user_content})
+    if last_img_prompt:
+        messages.append({"role": "system", "content": (
+            f"Важно: ты умеешь генерировать изображения — это часть твоего функционала, "
+            f"никогда не отрицай эту способность и не говори, что ты 'только текстовый помощник'. "
+            f"Последнее изображение, которое ты сгенерировала в этом чате, было по запросу "
+            f"«{last_img_prompt}». Если пользователь комментирует, уточняет или задаёт вопрос "
+            f"про это изображение (например, говорит про его цвет, детали, качество) — "
+            f"отвечай по существу, учитывая, что именно было на нём, и при необходимости "
+            f"предложи перегенерировать с учётом замечания."
+        )})
 
     try:
         if sub_level in ("standard", "premium"):
@@ -1678,6 +1708,21 @@ def main():
                         continue
 
                     sub_level = get_user_subscription_level(vk, from_id)
+
+                    # ── ВОПРОСЫ О ВОЗМОЖНОСТЯХ (прямой ответ, без ИИ) ──
+                    if text and is_capability_question(text) \
+                            and not is_image_request(text) and not is_graph_request(text):
+                        send_message(
+                            vk, peer_id,
+                            "Да, умею! Могу сгенерировать изображение по описанию — просто "
+                            "попроси «нарисуй...», и построить график математической функции — "
+                            "попроси «построй график...».",
+                            conv_message_id=cmid
+                        )
+                        continue
+
+                    # ── ГРАФИК ФУНКЦИИ ────────────────────────────
+                    if text and is_graph_request(text):
                     
                     # ── ГРАФИК ФУНКЦИИ ────────────────────────────
                     if text and is_graph_request(text):
