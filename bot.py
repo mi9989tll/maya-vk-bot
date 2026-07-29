@@ -1530,7 +1530,7 @@ def ask_maya(
         "'МАЯ:', '[МАЯ]', 'Пользователь X:' или что-то подобное перед своим ответом."
     )
 
-last_img_prompt = get_last_image_context(peer_id)
+    last_img_prompt = get_last_image_context(peer_id)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": current_date_note},
