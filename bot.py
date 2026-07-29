@@ -1720,9 +1720,6 @@ def main():
                             conv_message_id=cmid
                         )
                         continue
-
-                    # ── ГРАФИК ФУНКЦИИ ────────────────────────────
-                    if text and is_graph_request(text):
                     
                     # ── ГРАФИК ФУНКЦИИ ────────────────────────────
                     if text and is_graph_request(text):
