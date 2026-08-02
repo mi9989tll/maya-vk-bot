@@ -1546,6 +1546,9 @@ def ask_maya(
             f"отвечай по существу, учитывая, что именно было на нём, и при необходимости "
             f"предложи перегенерировать с учётом замечания."
         )})
+        
+    messages.extend(history)
+    messages.append({"role": "user", "content": user_content})
 
     try:
         if sub_level in ("standard", "premium"):
