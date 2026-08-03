@@ -1686,26 +1686,6 @@ def main():
                     if from_id == -GROUP_ID:
                         continue
 
-                    # ── АНТИСПАМ (работает во всех беседах, независимо от обращения к боту) ──
-                    if peer_id > 2000000000 and text:
-                        admins = get_chat_admins(vk, peer_id)
-                        if from_id not in admins and is_spam_message(peer_id, from_id, text):
-                            key = (peer_id, from_id)
-                            user_warnings[key] += 1
-                            if cmid:
-                                delete_spam_message(vk, peer_id, cmid)
-                            if user_warnings[key] >= MAX_WARNINGS_BEFORE_KICK:
-                                kick_spammer(vk, peer_id, from_id)
-                                send_message(vk, peer_id, "Участник исключён за спам.")
-                                user_warnings[key] = 0
-                            else:
-                                send_message(
-                                    vk, peer_id,
-                                    f"⚠️ Похоже на спам, сообщение удалено. "
-                                    f"Предупреждение {user_warnings[key]}/{MAX_WARNINGS_BEFORE_KICK}."
-                                )
-                            continue
-
                     respond, text = should_respond_in_chat(message)
                     if not respond:
                         continue
