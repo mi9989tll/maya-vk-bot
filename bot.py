@@ -1720,52 +1720,52 @@ def main():
                                          conv_message_id=cmid)
                         continue
 
-                    # ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
+# ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
                     if text and is_image_request(text):
                         prompt = extract_image_prompt_with_context(text, peer_id)
-                    if not prompt:
-                        send_message(vk, peer_id, "Уточни, что именно нарисовать.",
-                                     conv_message_id=cmid)
-                        continue
-                    if is_prompt_unsafe(prompt):
-                        send_message(vk, peer_id,
-                                     "Не могу сгенерировать изображение откровенного характера. "
-                                     "Давай что-нибудь другое?",
-                                     conv_message_id=cmid)
-                        continue
+                        if not prompt:
+                            send_message(vk, peer_id, "Уточни, что именно нарисовать.",
+                                         conv_message_id=cmid)
+                            continue
+                        if is_prompt_unsafe(prompt):
+                            send_message(vk, peer_id,
+                                         "Не могу сгенерировать изображение откровенного характера. "
+                                         "Давай что-нибудь другое?",
+                                         conv_message_id=cmid)
+                            continue
 
-                    if looks_like_real_person_request(prompt):
-                        send_message(vk, peer_id,
-                                     "Я не рисую портреты конкретных людей по имени — "
-                                     "это может задеть человека или использоваться для травли. "
-                                     "Могу нарисовать что-то другое?",
-                                     conv_message_id=cmid)
-                        continue
+                        if looks_like_real_person_request(prompt):
+                            send_message(vk, peer_id,
+                                         "Я не рисую портреты конкретных людей по имени — "
+                                         "это может задеть человека или использоваться для травли. "
+                                         "Могу нарисовать что-то другое?",
+                                         conv_message_id=cmid)
+                            continue
 
-                    save_to_history(peer_id, "user", f"[Пользователь {from_id}]: {text}")
-                    send_message(vk, peer_id, "Генерирую изображение, несколько секунд…",
-                                 conv_message_id=cmid)
-                    img = with_typing(vk, peer_id, generate_image, prompt)
-                    if img:
-                        att = upload_image_to_vk(vk, peer_id, img)
-                        if att:
-                            save_to_history(peer_id, "assistant",
-                                            f"[Я только что сгенерировала изображение по запросу: «{prompt}»]")
-                            send_message(vk, peer_id, f"Готово! Вот изображение по вашему запросу: «{text.strip()}»",
-                                         attachment=att, conv_message_id=cmid)
+                        save_to_history(peer_id, "user", f"[Пользователь {from_id}]: {text}")
+                        send_message(vk, peer_id, "Генерирую изображение, несколько секунд…",
+                                     conv_message_id=cmid)
+                        img = with_typing(vk, peer_id, generate_image, prompt)
+                        if img:
+                            att = upload_image_to_vk(vk, peer_id, img)
+                            if att:
+                                save_to_history(peer_id, "assistant",
+                                                f"[Я только что сгенерировала изображение по запросу: «{prompt}»]")
+                                send_message(vk, peer_id, f"Готово! Вот изображение по вашему запросу: «{text.strip()}»",
+                                             attachment=att, conv_message_id=cmid)
+                            else:
+                                save_to_history(peer_id, "assistant",
+                                                f"[Попытка отправить изображение по запросу «{prompt}» не удалась]")
+                                send_message(vk, peer_id,
+                                             "Изображение сгенерировано, но не удалось загрузить его в VK. Попробуй ещё раз.",
+                                             conv_message_id=cmid)
                         else:
                             save_to_history(peer_id, "assistant",
-                                            f"[Попытка отправить изображение по запросу «{prompt}» не удалась]")
+                                            f"[Попытка сгенерировать изображение по запросу «{prompt}» не удалась]")
                             send_message(vk, peer_id,
-                                         "Изображение сгенерировано, но не удалось загрузить его в VK. Попробуй ещё раз.",
+                                         "Не удалось создать изображение. Попробуй другой запрос.",
                                          conv_message_id=cmid)
-                    else:
-                        save_to_history(peer_id, "assistant",
-                                        f"[Попытка сгенерировать изображение по запросу «{prompt}» не удалась]")
-                        send_message(vk, peer_id,
-                                     "Не удалось создать изображение. Попробуй другой запрос.",
-                                     conv_message_id=cmid)
-                    continue
+                        continue
 
                     # ── ПОИСК МЕСТ ────────────────────────────────
                     if text:
