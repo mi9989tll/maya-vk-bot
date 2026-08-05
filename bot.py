@@ -1722,7 +1722,7 @@ def main():
 
                     # ── ГЕНЕРАЦИЯ ИЗОБРАЖЕНИЯ ─────────────────────
                     if text and is_image_request(text):
-                    prompt = extract_image_prompt_with_context(text, peer_id)
+                        prompt = extract_image_prompt_with_context(text, peer_id)
                     if not prompt:
                         send_message(vk, peer_id, "Уточни, что именно нарисовать.",
                                      conv_message_id=cmid)
