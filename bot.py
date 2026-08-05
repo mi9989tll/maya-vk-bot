@@ -1693,6 +1693,7 @@ def main():
                         continue
 
                     sub_level = get_user_subscription_level(vk, from_id)
+                    image_bytes = download_photo_from_attachments(attachments) if attachments else None
 
                     # ── ВОПРОСЫ О ВОЗМОЖНОСТЯХ (прямой ответ, без ИИ) ──
                     if text and is_capability_question(text) \
