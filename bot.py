@@ -1713,8 +1713,13 @@ def main():
                         img = plot_function(expr) if expr else None
                         if img:
                             att = upload_image_to_vk(vk, peer_id, img)
-                            send_message(vk, peer_id, f"Готово! График функции y = {expr}",
-                                         attachment=att, conv_message_id=cmid)
+                            if att:
+                                send_message(vk, peer_id, f"Готово! График функции y = {expr}",
+                                             attachment=att, conv_message_id=cmid)
+                            else:
+                                send_message(vk, peer_id,
+                                             "График построен, но не удалось загрузить его в VK (проблема с соединением). Попробуй ещё раз.",
+                                             conv_message_id=cmid)
                         else:
                             send_message(vk, peer_id,
                                          "Не удалось построить график. Уточни функцию, например: «построй график x^2 + 2x»",
